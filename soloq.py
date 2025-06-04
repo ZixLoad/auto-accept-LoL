@@ -15,7 +15,8 @@ TOLERANCE = 15
 CONFIG_FILE = "config.json" 
 # Variables globales
 X, Y = None, None
-selection_mode = False  
+selection_mode = False
+click_listener = None
 def sauvegarder_position(x, y):
     """ Sauvegarde la position X, Y dans un fichier JSON """
     data = {"X": x, "Y": y}
@@ -32,24 +33,32 @@ def charger_position():
     return None, None  # Retourne None si pas de position sauvegardée
 
 def activer_selection():
-    """ Active le mode sélection : le prochain clic gauche enregistrera la position """
-    global selection_mode
+    """Active le mode sélection : le prochain clic gauche enregistrera la position"""
+    global selection_mode, click_listener
     selection_mode = True
     status_label.config(text="🖱️ Cliquez n'importe où pour définir la position...")
 
+    # Arrêter un éventuel listener précédent pour éviter les doublons
+    if click_listener is not None:
+        click_listener.stop()
+
     # Lancer l'écoute des clics globaux
-    listener = mouse.Listener(on_click=enregistrer_position)
-    listener.start()
+    click_listener = mouse.Listener(on_click=enregistrer_position)
+    click_listener.start()
 
 def enregistrer_position(x, y, button, pressed):
-    """ Capture la position du prochain clic gauche sur l'écran """
-    global X, Y, selection_mode
+    """Capture la position du prochain clic gauche sur l'écran"""
+    global X, Y, selection_mode, click_listener
     if pressed and selection_mode:  # Vérifie si un clic gauche est fait
         X, Y = x, y
         position_label.config(text=f"Position : X={X}, Y={Y}")
         status_label.config(text="✅ Position enregistrée !")
         selection_mode = False  # Désactive la sélection
         sauvegarder_position(X, Y)  # 📌 Sauvegarde la position
+
+        if click_listener is not None:
+            click_listener.stop()
+            click_listener = None
 
 def couleur_proche(c1, couleurs_cibles, tolerance):
     """ Vérifie si une couleur est proche d'une des couleurs enregistrées """
@@ -81,6 +90,7 @@ def detecter_et_cliquer():
             break
 
         time.sleep(1)  # Vérifier toutes les secondes
+        root.update()
 
 # Interface Graphique (GUI)
 root = tk.Tk()
